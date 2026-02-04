@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmacokinetiek Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        h1 {
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 24px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+        }
+        @media (max-width: 1000px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+        }
+        .panel h3 {
+            margin: 0 0 16px 0;
+            color: #334155;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel h3 .icon {
+            font-size: 16px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .form-group {
+            margin-bottom: 0;
+        }
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .form-group .unit {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .dosing-schedule {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+        .dose-row {
+            display: grid;
+            grid-template-columns: 80px 1fr 32px;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .dose-row:last-child {
+            margin-bottom: 0;
+        }
+        .dose-row input {
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .dose-row .time-label {
+            font-size: 13px;
+            color: #475569;
+            font-weight: 500;
+        }
+        .btn-remove {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-remove:hover {
+            background: #fecaca;
+        }
+        .btn-add {
+            width: 100%;
+            padding: 8px;
+            border: 2px dashed #cbd5e1;
+            background: transparent;
+            color: #64748b;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 8px;
+            transition: all 0.2s;
+        }
+        .btn-add:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background: #eff6ff;
+        }
+        .btn-simulate {
+            width: 100%;
+            padding: 14px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 16px;
+        }
+        .btn-simulate:hover {
+            background: #2563eb;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .stat-card {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .stat-unit {
+            font-size: 12px;
+            color: #64748b;
+        }
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #0284c7;
+            padding: 12px;
+            border-radius: 0 8px 8px 0;
+            font-size: 13px;
+            margin-top: 16px;
+        }
+        .info-box p {
+            margin: 0;
+        }
+        .legend-custom {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+        .legend-line {
+            width: 24px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        .drug-name-display {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 15px;
+        }
+        .formulation-select {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .formulation-btn {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .formulation-btn:hover {
+            border-color: #3b82f6;
+        }
+        .formulation-btn.active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .formulation-btn .label {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 13px;
+        }
+        .formulation-btn .desc {
+            font-size: 11px;
+            color: #64748b;
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .annotation-line {
+            position: relative;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+        .checkbox-group label {
+            font-size: 13px;
+            color: #475569;
+            margin: 0;
+        }
+        .info-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .info-btn:hover {
+            background: #2563eb;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        .modal h2 {
+            margin-top: 0;
+            color: #0f172a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-close {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            font-size: 20px;
+            cursor: pointer;
+            color: #64748b;
+        }
+        .modal-close:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .modal h3 {
+            color: #1e40af;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .modal h4 {
+            color: #334155;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+        .formula {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            font-family: 'Times New Roman', serif;
+            font-size: 16px;
+            overflow-x: auto;
+        }
+        .formula-var {
+            font-style: italic;
+        }
+        .formula-note {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 8px;
+        }
+        .limitations {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+        }
+        .limitations ul {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+        }
+        .references {
+            background: #f0f9ff;
+            border-left: 4px solid #0284c7;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+            font-size: 13px;
+        }
+        .references ol {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>💊 Farmacokinetiek Simulator</h1>
+    <p class="subtitle">Simuleer plasmaconcentraties voor elk geneesmiddel <button class="info-btn" onclick="openModal()" title="Informatie over formules">i</button></p>
+    
+    <div class="container">
+        <div class="chart-container">
+            <div class="legend-custom">
+                <span class="drug-name-display" id="drugNameDisplay">Geneesmiddel</span>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: #3b82f6;"></div>
+                    <span>Plasmaconcentratie</span>
+                </div>
+                <div class="legend-item" id="legendCssAvg">
+                    <div class="legend-line" style="background: #f59e0b; height: 0; border-top: 2px dashed #f59e0b;"></div>
+                    <span>Css,avg</span>
+                </div>
+                <div class="legend-item" id="legendTherapeutic" style="display: none;">
+                    <div class="legend-line" style="background: rgba(34, 197, 94, 0.3); border: 1px dashed #22c55e;"></div>
+                    <span>Therapeutisch venster</span>
+                </div>
+            </div>
+            <canvas id="pkChart"></canvas>
+            
+            <div class="info-box" id="ssInfo" style="display: none;">
+                <p id="ssInfoText"></p>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="panel">
+                <h3><span class="icon">💊</span> Geneesmiddel</h3>
+                
+                <div class="form-group full-width">
+                    <label>Naam geneesmiddel</label>
+                    <input type="text" id="drugName" value="" placeholder="bijv. Paracetamol">
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3><span class="icon">📊</span> PK Parameters</h3>
+                
+                <div class="formulation-select">
+                    <button class="formulation-btn active" onclick="setFormulation('oral')" id="btn-oral">
+                        <div class="label">Oraal</div>
+                        <div class="desc">tablet, capsule</div>
+                    </button>
+                    <button class="formulation-btn" onclick="setFormulation('iv')" id="btn-iv">
+                        <div class="label">Intraveneus</div>
+                        <div class="desc">bolus</div>
+                    </button>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Halfwaardetijd (t½)</label>
+                        <input type="number" id="halflife" value="" step="0.1" min="0.1" placeholder="bijv. 2">
+                        <div class="unit">uur</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Vd</label>
+                        <input type="number" id="vd" value="" step="0.1" min="0.1" placeholder="bijv. 0.9">
+                        <div class="unit">L/kg</div>
+                    </div>
+                    <div class="form-group" id="bioavailGroup">
+                        <label>Biologische beschikbaarheid (F)</label>
+                        <input type="number" id="bioavailability" value="" step="1" min="1" max="100" placeholder="bijv. 85">
+                        <div class="unit">%</div>
+                    </div>
+                    <div class="form-group" id="tmaxGroup">
+                        <label>Tmax</label>
+                        <input type="number" id="tmax" value="" step="0.25" min="0.25" placeholder="bijv. 1">
+                        <div class="unit">uur</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Lichaamsgewicht</label>
+                        <input type="number" id="weight" value="70" step="1" min="30" max="200">
+                        <div class="unit">kg</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3><span class="icon">⏰</span> Doseringsschema</h3>
+                
+                <div class="form-grid" style="margin-bottom: 12px;">
+                    <div class="form-group">
+                        <label>Doseerinterval</label>
+                        <select id="interval">
+                            <option value="4">4 uur (6dd)</option>
+                            <option value="6">6 uur (4dd)</option>
+                            <option value="8">8 uur (3dd)</option>
+                            <option value="12" selected>12 uur (2dd)</option>
+                            <option value="24">24 uur (1dd)</option>
+                            <option value="custom">Aangepast</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Standaard dosis</label>
+                        <input type="number" id="defaultDose" value="" step="50" min="1" placeholder="bijv. 500">
+                        <div class="unit">mg</div>
+                    </div>
+                </div>
+                
+                <div class="dosing-schedule" id="dosingSchedule">
+                    <!-- Doses will be added here -->
+                </div>
+                
+                <button class="btn-add" onclick="addDose()">+ Dosis toevoegen</button>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showTherapeutic" onchange="updateChart()">
+                    <label for="showTherapeutic">Toon therapeutisch venster</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showCssAvg" checked onchange="updateChart()">
+                    <label for="showCssAvg">Toon Css,avg lijn</label>
+                </div>
+                <div id="therapeuticInputs" style="display: none; margin-top: 8px;">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Min (dal)</label>
+                            <input type="number" id="therapMin" value="" step="0.1" placeholder="bijv. 10">
+                            <div class="unit therap-unit">mg/L</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Max (piek)</label>
+                            <input type="number" id="therapMax" value="" step="0.1" placeholder="bijv. 20">
+                            <div class="unit therap-unit">mg/L</div>
+                        </div>
+                    </div>
+                    <div class="info-box" style="margin-top: 8px; padding: 8px; font-size: 12px;">
+                        <strong>Let op:</strong> Voer waarden in dezelfde eenheid in als de grafiek toont.
+                    </div>
+                </div>
+                
+                <button class="btn-simulate" onclick="updateChart()">📈 Simuleer</button>
+            </div>
+            
+            <div class="panel">
+                <h3><span class="icon">📋</span> Resultaten (steady-state)</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Css,max (piek)</div>
+                        <div class="stat-value" id="cmax">--</div>
+                        <div class="stat-unit stat-unit-conc">mg/L</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Css,min (dal)</div>
+                        <div class="stat-value" id="cmin">--</div>
+                        <div class="stat-unit stat-unit-conc">mg/L</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Tijd tot SS</div>
+                        <div class="stat-value" id="tss">--</div>
+                        <div class="stat-unit">uur</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Accumulatie (R)</div>
+                        <div class="stat-value" id="accumulation">--</div>
+                        <div class="stat-unit">×</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Fluctuatie</div>
+                        <div class="stat-value" id="fluctuation">--</div>
+                        <div class="stat-unit">%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Css,avg</div>
+                        <div class="stat-value" id="cavg">--</div>
+                        <div class="stat-unit stat-unit-conc">mg/L</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div class="modal-overlay" id="infoModal" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2>
+                Farmacokinetische Formules
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </h2>
+            
+            <h3>1. Eliminatie rate constante (k)</h3>
+            <div class="formula">
+                <span class="formula-var">k</span> = ln(2) / <span class="formula-var">t</span><sub>½</sub>
+            </div>
+            <div class="formula-note">
+                <strong>Waarbij:</strong><br>
+                • <em>k</em> = eliminatieconstante (uur⁻¹)<br>
+                • <em>t½</em> = halfwaardetijd (uur)
+            </div>
+            
+            <h3>2. Concentratieberekening</h3>
+            
+            <h4>Intraveneus (bolus)</h4>
+            <div class="formula">
+                <span class="formula-var">C</span>(<span class="formula-var">t</span>) = (<span class="formula-var">D</span> / <span class="formula-var">V<sub>d</sub></span>) · e<sup>−<span class="formula-var">kt</span></sup>
+            </div>
+            
+            <h4>Oraal (Bateman-vergelijking)</h4>
+            <div class="formula">
+                <span class="formula-var">C</span>(<span class="formula-var">t</span>) = (<span class="formula-var">F</span> · <span class="formula-var">D</span> / <span class="formula-var">V<sub>d</sub></span>) · (<span class="formula-var">k<sub>a</sub></span> / (<span class="formula-var">k<sub>a</sub></span> − <span class="formula-var">k</span>)) · (e<sup>−<span class="formula-var">kt</span></sup> − e<sup>−<span class="formula-var">k<sub>a</sub>t</span></sup>)
+            </div>
+            <div class="formula-note">
+                <strong>Waarbij:</strong><br>
+                • <em>C(t)</em> = concentratie op tijdstip t (mg/L)<br>
+                • <em>D</em> = dosis (mg)<br>
+                • <em>V<sub>d</sub></em> = verdelingsvolume (L)<br>
+                • <em>F</em> = biologische beschikbaarheid (fractie)<br>
+                • <em>k<sub>a</sub></em> = absorptieconstante (uur⁻¹)<br>
+                • <em>k</em> = eliminatieconstante (uur⁻¹)
+            </div>
+            
+            <h4>Schatting van k<sub>a</sub> uit T<sub>max</sub></h4>
+            <div class="formula">
+                <span class="formula-var">k<sub>a</sub></span> = max(2<span class="formula-var">k</span>, 1 / (0.5 · <span class="formula-var">T<sub>max</sub></span>))
+            </div>
+            <div class="formula-note">
+                Dit is een vereenvoudigde schatting; in werkelijkheid is de relatie tussen k<sub>a</sub> en T<sub>max</sub> complexer en afhankelijk van zowel absorptie- als eliminatiesnelheid.
+            </div>
+            
+            <h3>3. Superpositie (meerdere doses)</h3>
+            <div class="formula">
+                <span class="formula-var">C<sub>totaal</sub></span>(<span class="formula-var">t</span>) = Σ <span class="formula-var">C<sub>i</sub></span>(<span class="formula-var">t</span> − <span class="formula-var">t<sub>dosis,i</sub></span>)
+            </div>
+            <div class="formula-note">
+                De totale concentratie is de som van de bijdragen van alle voorgaande doses. Dit principe geldt alleen bij lineaire farmacokinetiek.
+            </div>
+            
+            <h3>4. Accumulatiefactor (R)</h3>
+            <div class="formula">
+                <span class="formula-var">R</span> = 1 / (1 − e<sup>−<span class="formula-var">k</span>·<span class="formula-var">τ</span></sup>)
+            </div>
+            <div class="formula-note">
+                <strong>Waarbij:</strong><br>
+                • <em>τ</em> = doseerinterval (uur)<br>
+                • <em>R</em> geeft aan hoeveel hoger de steady-state concentratie is t.o.v. de eerste dosis
+            </div>
+            
+            <h3>5. Steady-state parameters</h3>
+            
+            <h4>Tijd tot steady-state</h4>
+            <div class="formula">
+                <span class="formula-var">t<sub>ss</sub></span> ≈ 4.5 · <span class="formula-var">t</span><sub>½</sub>
+            </div>
+            <div class="formula-note">
+                Na 4-5 halfwaardetijden is ~95% van steady-state bereikt.
+            </div>
+            
+            <h4>Fluctuatie</h4>
+            <div class="formula">
+                Fluctuatie (%) = ((<span class="formula-var">C<sub>ss,max</sub></span> − <span class="formula-var">C<sub>ss,min</sub></span>) / <span class="formula-var">C<sub>ss,avg</sub></span>) · 100
+            </div>
+            
+            <h3>6. Eenhedenconversie</h3>
+            <div class="formula">
+                1 mg/L = 1000 µg/L = 1 µg/mL
+            </div>
+            <div class="formula-note">
+                Bij concentraties &lt; 0.1 mg/L schakelt de weergave automatisch over naar µg/L voor betere leesbaarheid.
+            </div>
+            
+            <div class="limitations">
+                <strong>⚠️ Beperkingen van het model</strong>
+                <ul>
+                    <li><strong>Eén-compartiment model</strong> – geen distributiefase, niet geschikt voor middelen met complexe multicompartiment kinetiek</li>
+                    <li><strong>Lineaire kinetiek</strong> – geen verzadigbare eliminatie (Michaelis-Menten), zoals bij fenytoïne of ethanol</li>
+                    <li><strong>Vereenvoudigde absorptie</strong> – eerste-orde absorptie, geen lag-time, enterische coating of complexe absorptieprofielen</li>
+                    <li><strong>Geen eiwitbinding</strong> – toont totale concentratie, niet de vrije (farmacologisch actieve) fractie</li>
+                    <li><strong>Geen interindividuele variabiliteit</strong> – gebruikt vaste PK-parameters zonder rekening te houden met patiëntspecifieke factoren</li>
+                </ul>
+            </div>
+            
+            <div class="references">
+                <strong>📚 Referenties</strong>
+                <ol>
+                    <li>Rowland M, Tozer TN. <em>Clinical Pharmacokinetics and Pharmacodynamics: Concepts and Applications.</em> 4th ed. Philadelphia: Lippincott Williams & Wilkins; 2011.</li>
+                    <li>Gibaldi M, Perrier D. <em>Pharmacokinetics.</em> 2nd ed. New York: Marcel Dekker; 1982.</li>
+                    <li>Winter ME. <em>Basic Clinical Pharmacokinetics.</em> 5th ed. Philadelphia: Lippincott Williams & Wilkins; 2010.</li>
+                    <li>Derendorf H, Schmidt S. <em>Rowland and Tozer's Clinical Pharmacokinetics and Pharmacodynamics.</em> 5th ed. Philadelphia: Wolters Kluwer; 2020.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        let formulation = 'oral';
+        let doses = [
+            { time: '08:00', amount: '' },
+            { time: '20:00', amount: '' }
+        ];
+        
+        // Modal functions
+        function openModal() {
+            document.getElementById('infoModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeModal(event) {
+            if (!event || event.target === event.currentTarget) {
+                document.getElementById('infoModal').classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+        
+        // Helper function to format concentration with appropriate unit
+        function formatConcentration(value, includeUnit = true) {
+            if (value < 0.1) {
+                // Convert to µg/L (= ng/mL)
+                const ugL = value * 1000;
+                return includeUnit ? `${ugL.toFixed(1)} µg/L` : ugL.toFixed(1);
+            } else {
+                return includeUnit ? `${value.toFixed(2)} mg/L` : value.toFixed(2);
+            }
+        }
+        
+        // Get current unit based on Cmax value
+        function getConcentrationUnit(maxValue) {
+            return maxValue < 0.1 ? 'µg/L' : 'mg/L';
+        }
+        
+        // Convert value for display based on unit
+        function convertForDisplay(value, useUgL) {
+            return useUgL ? value * 1000 : value;
+        }
+        
+        function updateDrugNameDisplay() {
+            const name = document.getElementById('drugName').value || 'Geneesmiddel';
+            document.getElementById('drugNameDisplay').textContent = name;
+        }
+        
+        function setFormulation(type) {
+            formulation = type;
+            document.getElementById('btn-oral').classList.toggle('active', type === 'oral');
+            document.getElementById('btn-iv').classList.toggle('active', type === 'iv');
+            document.getElementById('bioavailGroup').style.display = type === 'oral' ? 'block' : 'none';
+            document.getElementById('tmaxGroup').style.display = type === 'oral' ? 'block' : 'none';
+            
+            if (type === 'iv') {
+                // Store oral values before switching
+                const currentF = document.getElementById('bioavailability').value;
+                const currentTmax = document.getElementById('tmax').value;
+                if (currentF) document.getElementById('bioavailability').dataset.oralValue = currentF;
+                if (currentTmax) document.getElementById('tmax').dataset.oralValue = currentTmax;
+                
+                // Set IV defaults
+                document.getElementById('bioavailability').value = 100;
+                document.getElementById('tmax').value = 0;
+            } else {
+                // Restore oral values if available
+                const storedF = document.getElementById('bioavailability').dataset.oralValue;
+                const storedTmax = document.getElementById('tmax').dataset.oralValue;
+                if (storedF) document.getElementById('bioavailability').value = storedF;
+                if (storedTmax) document.getElementById('tmax').value = storedTmax;
+            }
+            
+            updateChart();
+        }
+        
+        function updateDosesFromInterval() {
+            const interval = parseInt(document.getElementById('interval').value) || 12;
+            const defaultDose = parseFloat(document.getElementById('defaultDose').value) || 1000;
+            
+            doses = [];
+            let hour = 8; // Start at 08:00
+            const dosesPerDay = 24 / interval;
+            
+            for (let i = 0; i < dosesPerDay; i++) {
+                const h = (hour + i * interval) % 24;
+                doses.push({
+                    time: `${h.toString().padStart(2, '0')}:00`,
+                    amount: defaultDose
+                });
+            }
+            
+            renderDoses();
+        }
+        
+        function renderDoses() {
+            const container = document.getElementById('dosingSchedule');
+            container.innerHTML = doses.map((dose, i) => `
+                <div class="dose-row">
+                    <input type="time" value="${dose.time}" onchange="updateDose(${i}, 'time', this.value)">
+                    <input type="number" value="${dose.amount}" step="1" min="1" 
+                           onchange="updateDose(${i}, 'amount', this.value)" placeholder="mg">
+                    ${doses.length > 1 ? `<button class="btn-remove" onclick="removeDose(${i})">×</button>` : '<div></div>'}
+                </div>
+            `).join('');
+        }
+        
+        function updateDose(index, field, value) {
+            if (field === 'amount') {
+                doses[index][field] = value ? parseFloat(value) : '';
+            } else {
+                doses[index][field] = value;
+            }
+            updateChart();
+        }
+        
+        function addDose() {
+            const lastDose = doses[doses.length - 1];
+            const lastHour = parseInt(lastDose.time.split(':')[0]);
+            const interval = parseInt(document.getElementById('interval').value) || 12;
+            const newHour = (lastHour + interval) % 24;
+            
+            doses.push({
+                time: `${newHour.toString().padStart(2, '0')}:00`,
+                amount: lastDose.amount
+            });
+            renderDoses();
+            updateChart();
+        }
+        
+        function removeDose(index) {
+            if (doses.length > 1) {
+                doses.splice(index, 1);
+                renderDoses();
+                updateChart();
+            }
+        }
+        
+        function timeToHours(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h + m / 60;
+        }
+        
+        function calculateConcentration(dose, timeSinceDose, k, Vd, F, tmax) {
+            if (timeSinceDose < 0) return 0;
+            
+            // Convert dose from mg to µg for µg/mL (= mg/L) output
+            const doseUg = dose * 1000;
+            
+            if (formulation === 'iv' || tmax === 0) {
+                // IV bolus: instant peak then mono-exponential decay
+                return (doseUg / Vd) * Math.exp(-k * timeSinceDose);
+            } else {
+                // Oral: one-compartment with first-order absorption
+                // ka = absorption rate constant, estimated from tmax
+                // At tmax: dC/dt = 0 → ka = k * e^(ka*tmax) / (e^(ka*tmax) - 1)
+                // Simplified: ka ≈ 1 / (tmax * 0.4) for typical drugs
+                const ka = Math.max(k * 2, 1 / (tmax * 0.5));
+                
+                if (Math.abs(ka - k) < 0.001) {
+                    // Special case when ka ≈ k
+                    return (F / 100) * (doseUg / Vd) * k * timeSinceDose * Math.exp(-k * timeSinceDose);
+                }
+                
+                // Bateman equation
+                const C = (F / 100) * (doseUg / Vd) * (ka / (ka - k)) * 
+                          (Math.exp(-k * timeSinceDose) - Math.exp(-ka * timeSinceDose));
+                return Math.max(0, C);
+            }
+        }
+        
+        function simulateDosing() {
+            const halflife = parseFloat(document.getElementById('halflife').value);
+            const vd = parseFloat(document.getElementById('vd').value);
+            const weight = parseFloat(document.getElementById('weight').value);
+            const bioavailability = parseFloat(document.getElementById('bioavailability').value);
+            const tmax = parseFloat(document.getElementById('tmax').value);
+            
+            // Calculate duration as 7x halflife, rounded up to nearest 12 hours, minimum 24h
+            const duration = Math.max(24, Math.ceil((7 * halflife) / 12) * 12);
+            
+            const k = Math.LN2 / halflife;
+            const Vd = vd * weight; // Total Vd in L
+            
+            // Sort doses by time
+            const sortedDoses = [...doses].sort((a, b) => timeToHours(a.time) - timeToHours(b.time));
+            
+            // First dose time becomes t=0
+            const firstDoseTime = timeToHours(sortedDoses[0].time);
+            
+            // Calculate relative dose times (relative to first dose)
+            const relativeDoses = sortedDoses.map(d => {
+                let relTime = timeToHours(d.time) - firstDoseTime;
+                if (relTime < 0) relTime += 24; // Handle overnight doses
+                return { relativeTime: relTime, amount: d.amount };
+            });
+            
+            // Calculate interval for accumulation factor
+            const interval = relativeDoses.length > 1 
+                ? relativeDoses[1].relativeTime - relativeDoses[0].relativeTime
+                : 24;
+            
+            const points = [];
+            const dt = Math.min(0.1, halflife / 20); // Adaptive resolution
+            
+            for (let t = 0; t <= duration; t += dt) {
+                let totalConc = 0;
+                
+                // For each day in the simulation
+                const days = Math.ceil(duration / 24) + 1;
+                for (let day = 0; day < days; day++) {
+                    // For each dose in the schedule
+                    for (const dose of relativeDoses) {
+                        const doseTime = day * 24 + dose.relativeTime;
+                        const timeSinceDose = t - doseTime;
+                        
+                        if (timeSinceDose >= 0) {
+                            totalConc += calculateConcentration(
+                                dose.amount, 
+                                timeSinceDose, 
+                                k, 
+                                Vd, 
+                                bioavailability, 
+                                tmax
+                            );
+                        }
+                    }
+                }
+                
+                // Convert to mg/L (same as µg/mL)
+                points.push({ x: t, y: totalConc / 1000 });
+            }
+            
+            return { points, k, interval, halflife, duration };
+        }
+        
+        function updateChart() {
+            // Validate required inputs
+            const halflifeInput = parseFloat(document.getElementById('halflife').value);
+            const vdInput = parseFloat(document.getElementById('vd').value);
+            const bioavailabilityInput = parseFloat(document.getElementById('bioavailability').value);
+            const tmaxInput = parseFloat(document.getElementById('tmax').value);
+            
+            if (!halflifeInput || !vdInput || (formulation === 'oral' && (!bioavailabilityInput || !tmaxInput))) {
+                // Show empty state
+                document.getElementById('drugNameDisplay').textContent = document.getElementById('drugName').value || 'Geneesmiddel';
+                document.getElementById('cmax').textContent = '--';
+                document.getElementById('cmin').textContent = '--';
+                document.getElementById('tss').textContent = '--';
+                document.getElementById('accumulation').textContent = '--';
+                document.getElementById('fluctuation').textContent = '--';
+                document.getElementById('cavg').textContent = '--';
+                document.getElementById('ssInfo').style.display = 'none';
+                
+                if (chart) {
+                    chart.data.datasets = [];
+                    chart.options.plugins.annotation = { annotations: {} };
+                    chart.update();
+                }
+                return;
+            }
+            
+            // Check if doses have valid amounts
+            const validDoses = doses.filter(d => d.amount && d.amount > 0);
+            if (validDoses.length === 0) {
+                document.getElementById('drugNameDisplay').textContent = document.getElementById('drugName').value || 'Geneesmiddel';
+                document.getElementById('ssInfo').style.display = 'none';
+                if (chart) {
+                    chart.data.datasets = [];
+                    chart.options.plugins.annotation = { annotations: {} };
+                    chart.update();
+                }
+                return;
+            }
+            
+            const drugName = document.getElementById('drugName').value || 'Geneesmiddel';
+            document.getElementById('drugNameDisplay').textContent = drugName;
+            
+            // Toggle therapeutic window inputs
+            const showTherapeutic = document.getElementById('showTherapeutic').checked;
+            document.getElementById('therapeuticInputs').style.display = showTherapeutic ? 'block' : 'none';
+            document.getElementById('legendTherapeutic').style.display = showTherapeutic ? 'flex' : 'none';
+            
+            const showCssAvgChecked = document.getElementById('showCssAvg').checked;
+            document.getElementById('legendCssAvg').style.display = showCssAvgChecked ? 'flex' : 'none';
+            
+            const { points, k, interval, halflife, duration } = simulateDosing();
+            
+            // Calculate steady-state metrics (last 24 hours)
+            const ssStartTime = Math.max(0, duration - 24);
+            const ssPoints = points.filter(p => p.x >= ssStartTime);
+            
+            const Cmax = Math.max(...ssPoints.map(p => p.y));
+            const Cmin = Math.min(...ssPoints.map(p => p.y));
+            const Cavg = ssPoints.reduce((sum, p) => sum + p.y, 0) / ssPoints.length;
+            
+            // Time to ~95% steady-state = 4.5 * t½
+            const timeToSS = (4.5 * halflife).toFixed(1);
+            
+            // Accumulation factor
+            const R = 1 / (1 - Math.exp(-k * interval));
+            
+            // Fluctuation = (Cmax - Cmin) / Cavg * 100
+            const fluctuation = Cavg > 0 ? ((Cmax - Cmin) / Cavg * 100).toFixed(0) : 0;
+            
+            // Determine unit based on Cmax
+            const useUgL = Cmax < 0.1;
+            const unit = useUgL ? 'µg/L' : 'mg/L';
+            
+            // Update stats with appropriate unit
+            document.getElementById('cmax').textContent = useUgL ? (Cmax * 1000).toFixed(1) : Cmax.toFixed(2);
+            document.getElementById('cmin').textContent = useUgL ? (Cmin * 1000).toFixed(1) : Cmin.toFixed(2);
+            document.getElementById('tss').textContent = timeToSS;
+            document.getElementById('accumulation').textContent = R.toFixed(2);
+            document.getElementById('fluctuation').textContent = fluctuation;
+            document.getElementById('cavg').textContent = useUgL ? (Cavg * 1000).toFixed(1) : Cavg.toFixed(2);
+            
+            // Update unit labels in stats
+            document.querySelectorAll('.stat-unit-conc').forEach(el => el.textContent = unit);
+            
+            // Update therapeutic window unit labels
+            document.querySelectorAll('.therap-unit').forEach(el => el.textContent = unit);
+            
+            // Info text
+            const ssInfo = document.getElementById('ssInfo');
+            const ssInfoText = document.getElementById('ssInfoText');
+            ssInfo.style.display = 'block';
+            ssInfoText.innerHTML = `<strong>Steady-state</strong> wordt bereikt na ~${timeToSS} uur (4-5 × t½). ` +
+                `De accumulatiefactor R = ${R.toFixed(2)} betekent dat de steady-state concentraties ` +
+                `${R.toFixed(1)}× hoger zijn dan na de eerste dosis.`;
+            
+            // Prepare chart data - convert to µg/L if needed
+            const chartPoints = useUgL 
+                ? points.map(p => ({ x: p.x, y: p.y * 1000 }))
+                : points;
+            
+            const datasets = [{
+                label: drugName,
+                data: chartPoints,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                pointRadius: 0,
+                tension: 0.2
+            }];
+            
+            // Add therapeutic window if enabled and values are provided
+            const annotations = {};
+            if (showTherapeutic) {
+                const therapMin = parseFloat(document.getElementById('therapMin').value);
+                const therapMax = parseFloat(document.getElementById('therapMax').value);
+                
+                // Only show if both values are provided
+                if (therapMin && therapMax) {
+                    // Therapeutic range shaded area
+                    annotations.therapRange = {
+                        type: 'box',
+                        yMin: therapMin,
+                        yMax: therapMax,
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        borderWidth: 0
+                    };
+                    
+                    annotations.therapMin = {
+                        type: 'line',
+                        yMin: therapMin,
+                        yMax: therapMin,
+                        borderColor: '#22c55e',
+                        borderWidth: 2,
+                        borderDash: [6, 4],
+                        label: {
+                            display: true,
+                            content: `Min: ${therapMin} ${unit}`,
+                            position: 'end',
+                            backgroundColor: '#22c55e',
+                            color: 'white',
+                            font: { size: 11 }
+                        }
+                    };
+                    annotations.therapMax = {
+                        type: 'line',
+                        yMin: therapMax,
+                        yMax: therapMax,
+                        borderColor: '#ef4444',
+                        borderWidth: 2,
+                        borderDash: [6, 4],
+                        label: {
+                            display: true,
+                            content: `Max: ${therapMax} ${unit}`,
+                            position: 'end',
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            font: { size: 11 }
+                        }
+                    };
+                }
+            }
+            
+            // Add Css,avg line if enabled
+            const showCssAvg = document.getElementById('showCssAvg').checked;
+            if (showCssAvg && Cavg > 0) {
+                const CavgDisplay = useUgL ? Cavg * 1000 : Cavg;
+                annotations.cssAvg = {
+                    type: 'line',
+                    yMin: CavgDisplay,
+                    yMax: CavgDisplay,
+                    borderColor: '#f59e0b',
+                    borderWidth: 2,
+                    borderDash: [4, 4],
+                    label: {
+                        display: true,
+                        content: `Css,avg: ${useUgL ? CavgDisplay.toFixed(1) : Cavg.toFixed(2)} ${unit}`,
+                        position: 'start',
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        font: { size: 11 }
+                    }
+                };
+            }
+            
+            // Mark steady-state region
+            annotations.ssRegion = {
+                type: 'box',
+                xMin: Math.max(0, duration - 24),
+                xMax: duration,
+                backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                borderWidth: 0
+            };
+            
+            // Store unit for tooltip callback
+            const currentUnit = unit;
+            
+            if (chart) {
+                chart.data.datasets = datasets;
+                chart.options.scales.x.max = duration;
+                chart.options.scales.x.ticks.stepSize = duration <= 48 ? 6 : (duration <= 96 ? 12 : 24);
+                chart.options.scales.y.title.text = `Plasmaconcentratie (${unit})`;
+                chart.options.plugins.tooltip.callbacks.label = function(context) {
+                    return `Concentratie: ${context.parsed.y.toFixed(useUgL ? 1 : 2)} ${currentUnit}`;
+                };
+                chart.options.plugins.annotation = { annotations };
+                chart.update('none');
+            } else {
+                const ctx = document.getElementById('pkChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: { datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        aspectRatio: 1.6,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                title: {
+                                    display: true,
+                                    text: 'Tijd sinds eerste inname (uren)',
+                                    font: { weight: 'bold' }
+                                },
+                                min: 0,
+                                max: duration,
+                                ticks: {
+                                    stepSize: duration <= 48 ? 6 : (duration <= 96 ? 12 : 24),
+                                    callback: function(value) {
+                                        if (value % 24 === 0) {
+                                            return `${value}h (dag ${value/24 + 1})`;
+                                        }
+                                        return `${value}h`;
+                                    }
+                                },
+                                grid: {
+                                    color: function(context) {
+                                        if (context.tick && context.tick.value % 24 === 0) return '#cbd5e1';
+                                        return '#f1f5f9';
+                                    }
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: `Plasmaconcentratie (${unit})`,
+                                    font: { weight: 'bold' }
+                                },
+                                min: 0,
+                                grid: {
+                                    color: '#f1f5f9'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(items) {
+                                        const hours = items[0].parsed.x;
+                                        const days = Math.floor(hours / 24) + 1;
+                                        const h = hours % 24;
+                                        return `Dag ${days}, t = ${hours.toFixed(1)}h (${h.toFixed(1)}h in cyclus)`;
+                                    },
+                                    label: function(context) {
+                                        return `Concentratie: ${context.parsed.y.toFixed(useUgL ? 1 : 2)} ${currentUnit}`;
+                                    }
+                                }
+                            },
+                            annotation: { annotations }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('interval').addEventListener('change', function() {
+            if (this.value !== 'custom') {
+                updateDosesFromInterval();
+            }
+        });
+        
+        document.getElementById('defaultDose').addEventListener('change', function() {
+            const newDose = parseFloat(this.value);
+            doses.forEach(d => d.amount = newDose);
+            renderDoses();
+            updateChart();
+        });
+        
+        document.getElementById('drugName').addEventListener('input', function() {
+            updateDrugNameDisplay();
+        });
+        
+        // Initialize
+        renderDoses();
+        updateChart();
+    </script>
+</body>
+</html>
